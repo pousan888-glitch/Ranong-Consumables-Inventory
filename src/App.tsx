@@ -31,6 +31,7 @@ import { RequisitionView } from './components/RequisitionView';
 import { SettingsUserView } from './components/SettingsUserView';
 import { AuditLogsView } from './components/AuditLogsView';
 import { LoginView } from './components/LoginView';
+import { CabinetAuditView } from './components/CabinetAuditView';
 
 // Modals
 import { GoogleSheetsModal } from './components/GoogleSheetsModal';
@@ -54,6 +55,10 @@ export default function App() {
   const [googleUser, setGoogleUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
+  // Deep Link / Mobile QR Scan State
+  const [auditCabinetId, setAuditCabinetId] = useState<string | null>(null);
+  const [quickCheckinAuditor, setQuickCheckinAuditor] = useState<string | null>(null);
+
   // Modal states
   const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
   const [isScanQRModalOpen, setIsScanQRModalOpen] = useState(false);
@@ -71,6 +76,27 @@ export default function App() {
     setGlobalToast(msg);
     setTimeout(() => setGlobalToast(null), 4000);
   };
+
+  // URL Deep-linking Listener for native phone camera QR scans (?cabinet=CAB-C03&action=audit)
+  useEffect(() => {
+    const parseUrlParameters = () => {
+      try {
+        const search = window.location.search;
+        if (!search) return;
+        const params = new URLSearchParams(search);
+        const cab = params.get('cabinet') || params.get('cabinetId') || params.get('cab');
+        if (cab) {
+          setAuditCabinetId(cab.trim());
+        }
+      } catch (err) {
+        console.error('Error parsing search parameters:', err);
+      }
+    };
+
+    parseUrlParameters();
+    window.addEventListener('popstate', parseUrlParameters);
+    return () => window.removeEventListener('popstate', parseUrlParameters);
+  }, []);
 
   // Initialize Firebase Auth listener
   useEffect(() => {
@@ -373,6 +399,20 @@ export default function App() {
 
   const isHelperOnly = currentUserStaff?.role === 'helper';
 
+  // Resolved Cabinet for Deep Link / Mobile Scan Audit
+  const targetAuditCabinet = React.useMemo(() => {
+    if (!auditCabinetId) return null;
+    const trimmed = auditCabinetId.trim().toLowerCase();
+    return (
+      cabinets.find(
+        (c) =>
+          c.id.toLowerCase() === trimmed ||
+          c.qrCode?.toLowerCase() === trimmed ||
+          c.name.toLowerCase().includes(trimmed)
+      ) || null
+    );
+  }, [auditCabinetId, cabinets]);
+
   // Auth Loading Gate
   if (isAuthLoading) {
     return (
@@ -390,14 +430,65 @@ export default function App() {
   }
 
   // Authentication Required Gate (Access Restriction)
-  if (!googleUser) {
+  // If user is not signed in with Google AND has not completed a quick on-site check-in
+  if (!googleUser && !quickCheckinAuditor) {
     return (
       <LoginView
+        scannedCabinet={targetAuditCabinet}
         onLoginSuccess={(user) => {
           setGoogleUser(user);
           showGlobalToast(`ลงชื่อเข้าใช้สำเร็จ: ยินดีต้อนรับ ${user.displayName || user.email}`);
         }}
+        onQuickCheckin={(auditorName) => {
+          setQuickCheckinAuditor(auditorName);
+          showGlobalToast(`ลงชื่อเข้าตรวจนับหน้างาน: ${auditorName}`);
+        }}
       />
+    );
+  }
+
+  // ACTIVE MOBILE QR AUDIT VIEW (Native Phone Camera Scan & Direct Audit)
+  // When a user scans the cabinet QR code with their mobile phone camera, they land here!
+  if (targetAuditCabinet) {
+    const auditorDisplayName =
+      quickCheckinAuditor ||
+      googleUser?.displayName ||
+      (googleUser?.email ? googleUser.email.split('@')[0] : 'เจ้าหน้าที่ตรวจนับ');
+
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-900 text-slate-100 font-sans antialiased">
+        {/* GLOBAL TOAST NOTIFICATION */}
+        {globalToast && (
+          <div className="fixed top-5 right-5 z-50 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-xl border border-slate-700 text-xs font-semibold flex items-center gap-2.5 animate-slide-in">
+            <span className="material-symbols-outlined text-base text-indigo-400">
+              check_circle
+            </span>
+            <span>{globalToast}</span>
+          </div>
+        )}
+
+        <CabinetAuditView
+          cabinet={targetAuditCabinet}
+          items={items}
+          auditorName={auditorDisplayName}
+          googleUser={googleUser}
+          onSaveAudit={(cabinetId, counts, note, auditor) => {
+            handleAuditCompleted(cabinetId, note || 'ตรวจนับสต็อกผ่านการสแกน QR Code หน้าตู้', counts);
+            // Clear URL search params cleanly
+            try {
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } catch {}
+            setAuditCabinetId(null);
+            showGlobalToast(`บันทึกผลการตรวจนับตู้ ${cabinetId} สำเร็จ`);
+          }}
+          onClose={() => {
+            try {
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } catch {}
+            setAuditCabinetId(null);
+          }}
+        />
+      </div>
     );
   }
 
@@ -423,6 +514,7 @@ export default function App() {
           selectedCabinetId={selectedCabinetIdForTerminal}
           onSelectCabinetId={setSelectedCabinetIdForTerminal}
           onOpenScanQR={() => setIsScanQRModalOpen(true)}
+          onStartAudit={(cabId) => setAuditCabinetId(cabId)}
           isHelperOnly={true}
           googleUser={googleUser}
           onLogout={handleLogout}
@@ -433,7 +525,10 @@ export default function App() {
           isOpen={isScanQRModalOpen}
           onClose={() => setIsScanQRModalOpen(false)}
           cabinets={cabinets}
-          onCabinetScanned={(cabId) => handleSelectCabinetForTerminal(cabId)}
+          onCabinetScanned={(cabId) => {
+            setSelectedCabinetIdForTerminal(cabId);
+            setAuditCabinetId(cabId);
+          }}
         />
       </div>
     );
@@ -509,6 +604,7 @@ export default function App() {
             selectedCabinetId={selectedCabinetIdForTerminal}
             onSelectCabinetId={setSelectedCabinetIdForTerminal}
             onOpenScanQR={() => setIsScanQRModalOpen(true)}
+            onStartAudit={(cabId) => setAuditCabinetId(cabId)}
             isHelperOnly={false}
             googleUser={googleUser}
             onLogout={handleLogout}
@@ -522,6 +618,7 @@ export default function App() {
             onOpenPrintModal={handleOpenPrintModal}
             onOpenScanQR={() => setIsScanQRModalOpen(true)}
             onSelectCabinetForTerminal={handleSelectCabinetForTerminal}
+            onStartAudit={(cabId) => setAuditCabinetId(cabId)}
           />
         )}
 
@@ -570,15 +667,21 @@ export default function App() {
 
       <PrintQRModal
         cabinet={selectedCabinetForPrint}
+        allCabinets={cabinets}
         isOpen={isPrintQRModalOpen}
         onClose={() => setIsPrintQRModalOpen(false)}
+        onSelectCabinet={(cab) => setSelectedCabinetForPrint(cab)}
+        onTestAuditOpen={(cabId) => setAuditCabinetId(cabId)}
       />
 
       <ScanQRModal
         isOpen={isScanQRModalOpen}
         onClose={() => setIsScanQRModalOpen(false)}
         cabinets={cabinets}
-        onCabinetScanned={(cabId) => handleSelectCabinetForTerminal(cabId)}
+        onCabinetScanned={(cabId) => {
+          setSelectedCabinetIdForTerminal(cabId);
+          setAuditCabinetId(cabId);
+        }}
       />
 
       <QuickIssueModal

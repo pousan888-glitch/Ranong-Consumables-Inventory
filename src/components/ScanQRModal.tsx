@@ -26,6 +26,26 @@ export const ScanQRModal: React.FC<ScanQRModalProps> = ({
   // Helper to extract clean cabinet ID
   const resolveCabinetId = (rawPayload: string): string => {
     const trimmed = rawPayload.trim();
+
+    // Check if it's a URL with ?cabinet=... or ?cabinetId=...
+    try {
+      if (trimmed.includes('?') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        const urlObj = new URL(trimmed.startsWith('http') ? trimmed : `http://dummy.com${trimmed.startsWith('/') ? '' : '/'}${trimmed}`);
+        const cabParam = urlObj.searchParams.get('cabinet') || urlObj.searchParams.get('cabinetId');
+        if (cabParam) {
+          const directMatch = cabinets.find(
+            (c) =>
+              c.id.toLowerCase() === cabParam.toLowerCase() ||
+              c.qrCode?.toLowerCase() === cabParam.toLowerCase()
+          );
+          if (directMatch) return directMatch.id;
+          return cabParam.toUpperCase();
+        }
+      }
+    } catch {
+      // Not a standard URL, continue
+    }
+
     // Check if it's JSON
     try {
       const parsed = JSON.parse(trimmed);

@@ -15,6 +15,7 @@ interface HelperModeViewProps {
   selectedCabinetId?: string;
   onSelectCabinetId?: (cabinetId: string) => void;
   onOpenScanQR?: () => void;
+  onStartAudit?: (cabinetId: string) => void;
   isHelperOnly?: boolean;
   googleUser?: User | null;
   onLogout?: () => void;
@@ -29,6 +30,7 @@ export const HelperModeView: React.FC<HelperModeViewProps> = ({
   selectedCabinetId = 'CAB-C03',
   onSelectCabinetId,
   onOpenScanQR,
+  onStartAudit,
   isHelperOnly = false,
   googleUser,
   onLogout,
@@ -307,16 +309,28 @@ export const HelperModeView: React.FC<HelperModeViewProps> = ({
               </div>
             </div>
 
-            {/* SCAN QR BUTTON */}
-            {onOpenScanQR && (
-              <button
-                onClick={onOpenScanQR}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-md shadow-indigo-950 transition-transform active:scale-[0.98] cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
-                <span>📷 สแกน QR ตู้ใหม่</span>
-              </button>
-            )}
+            {/* ACTION BUTTONS */}
+            <div className="flex items-center gap-2">
+              {onStartAudit && (
+                <button
+                  onClick={() => onStartAudit(activeCabinet.id)}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-700 transition-transform active:scale-[0.98] cursor-pointer"
+                  title="เปิดหน้าตรวจนับสต็อกแบบเต็มจอ"
+                >
+                  <span className="material-symbols-outlined text-base text-indigo-400">fullscreen</span>
+                  <span>ตรวจนับเต็มจอ</span>
+                </button>
+              )}
+              {onOpenScanQR && (
+                <button
+                  onClick={onOpenScanQR}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 shadow-md shadow-indigo-950 transition-transform active:scale-[0.98] cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
+                  <span>📷 สแกน QR ตู้ใหม่</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Quick Cabinet Selector Dropdown */}

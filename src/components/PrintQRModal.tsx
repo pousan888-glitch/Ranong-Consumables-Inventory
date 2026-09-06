@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import QRCode from 'qrcode';
 import { Cabinet } from '../types';
 
@@ -8,6 +8,7 @@ interface PrintQRModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectCabinet?: (cabinet: Cabinet) => void;
+  onTestAuditOpen?: (cabinetId: string) => void;
 }
 
 export const PrintQRModal: React.FC<PrintQRModalProps> = ({
@@ -16,8 +17,10 @@ export const PrintQRModal: React.FC<PrintQRModalProps> = ({
   isOpen,
   onClose,
   onSelectCabinet,
+  onTestAuditOpen,
 }) => {
   const [currentCabinet, setCurrentCabinet] = useState<Cabinet | null>(cabinet);
+  const [qrType, setQrType] = useState<'url' | 'raw'>('url');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [copyToast, setCopyToast] = useState<string | null>(null);
@@ -28,16 +31,28 @@ export const PrintQRModal: React.FC<PrintQRModalProps> = ({
     }
   }, [cabinet]);
 
+  // Compute direct web link that standard mobile cameras (iOS Camera, Android Camera, LINE, Google Lens) recognize
+  const directAuditUrl = useMemo(() => {
+    if (!currentCabinet) return '';
+    try {
+      const origin = window.location.origin;
+      const pathname = window.location.pathname;
+      return `${origin}${pathname}?cabinet=${encodeURIComponent(currentCabinet.id)}&action=audit`;
+    } catch {
+      return `?cabinet=${currentCabinet.id}&action=audit`;
+    }
+  }, [currentCabinet]);
+
   useEffect(() => {
     if (!currentCabinet) return;
 
     let isMounted = true;
     setIsGenerating(true);
 
-    // QR Payload contains the cabinet identification string
-    const qrPayload = currentCabinet.qrCode || currentCabinet.id;
+    // QR Payload: Default to direct mobile web URL so ANY standard phone camera can open it
+    const payload = qrType === 'url' ? directAuditUrl : (currentCabinet.qrCode || currentCabinet.id);
 
-    QRCode.toDataURL(qrPayload, {
+    QRCode.toDataURL(payload, {
       width: 320,
       margin: 2,
       color: {
@@ -62,7 +77,7 @@ export const PrintQRModal: React.FC<PrintQRModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [currentCabinet]);
+  }, [currentCabinet, qrType, directAuditUrl]);
 
   if (!isOpen || !currentCabinet) return null;
 
@@ -71,10 +86,19 @@ export const PrintQRModal: React.FC<PrintQRModalProps> = ({
   };
 
   const handleCopyPayload = () => {
-    const payload = currentCabinet.qrCode || currentCabinet.id;
+    const payload = qrType === 'url' ? directAuditUrl : (currentCabinet.qrCode || currentCabinet.id);
     navigator.clipboard?.writeText(payload);
-    setCopyToast('คัดลอกรหัส QR สำเร็จ');
+    setCopyToast(qrType === 'url' ? 'คัดลอกลิงก์สำหรับสแกนสำเร็จ' : 'คัดลอกรหัสตู้สำเร็จ');
     setTimeout(() => setCopyToast(null), 2500);
+  };
+
+  const handleTestOpen = () => {
+    if (onTestAuditOpen) {
+      onTestAuditOpen(currentCabinet.id);
+      onClose();
+    } else {
+      window.location.search = `?cabinet=${encodeURIComponent(currentCabinet.id)}&action=audit`;
+    }
   };
 
   return (
@@ -132,6 +156,51 @@ export const PrintQRModal: React.FC<PrintQRModalProps> = ({
           </div>
         )}
 
+        {/* QR PAYLOAD TYPE SELECTOR */}
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+          <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-sm text-indigo-600">tune</span>
+            <span>รูปแบบ QR Code ที่ต้องการสร้าง:</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setQrType('url')}
+              className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                qrType === 'url'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-900 shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-xs font-bold">
+                <span className="material-symbols-outlined text-base text-indigo-600">photo_camera</span>
+                <span>กล้องมือถือทั่วไป (แนะนำ)</span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                สแกนแล้วมือถือเปิดเว็บนำทางไปหน้าลงชื่อและตรวจนับทันที
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setQrType('raw')}
+              className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                qrType === 'raw'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-900 shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-xs font-bold">
+                <span className="material-symbols-outlined text-base text-slate-600">barcode_scanner</span>
+                <span>รหัสข้อความตู้ ({currentCabinet.id})</span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                สำหรับเครื่องยิงบาร์โค้ดฮาร์ดแวร์ประจำตู้
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* TOAST ALERT */}
         {copyToast && (
           <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center gap-2">
@@ -156,6 +225,9 @@ export const PrintQRModal: React.FC<PrintQRModalProps> = ({
             <div className="text-xs font-bold text-slate-800 mt-0.5">
               {currentCabinet.name}
             </div>
+            <div className="text-[10px] text-indigo-700 font-semibold mt-0.5">
+              {qrType === 'url' ? '• สแกนด้วยกล้องมือถือทั่วไปเพื่อลงชื่อตรวจนับสต็อก •' : '• รหัสตู้จัดเก็บ •'}
+            </div>
           </div>
 
           {/* REAL GENERATED QR CODE */}
@@ -179,14 +251,14 @@ export const PrintQRModal: React.FC<PrintQRModalProps> = ({
           </div>
 
           {/* Scannable Payload text */}
-          <div className="flex items-center gap-2">
-            <div className="font-mono text-xs font-bold text-slate-900 tracking-wider bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
-              {currentCabinet.qrCode || currentCabinet.id}
+          <div className="flex items-center gap-2 max-w-full">
+            <div className="font-mono text-[11px] font-bold text-slate-800 tracking-wider bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 truncate max-w-xs">
+              {qrType === 'url' ? directAuditUrl : (currentCabinet.qrCode || currentCabinet.id)}
             </div>
             <button
               onClick={handleCopyPayload}
-              className="p-1 text-slate-500 hover:text-indigo-600 transition-colors"
-              title="คัดลอกรหัส Payload"
+              className="p-1 text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
+              title="คัดลอกรหัส/ลิงก์"
             >
               <span className="material-symbols-outlined text-base">content_copy</span>
             </button>
@@ -201,31 +273,42 @@ export const PrintQRModal: React.FC<PrintQRModalProps> = ({
               โซน: <span className="font-bold text-slate-900">{currentCabinet.zone}</span> • ผู้ดูแล: {currentCabinet.responsibleEngineer}
             </div>
             <div className="text-[9px] text-indigo-700 font-mono font-semibold pt-1">
-              สแกนด้วยโหมด Helper เพื่อตรวจนับพัสดุและเบิกจ่ายด่วน
+              เปิดกล้องมือถือสแกนเพื่อเข้าสู่การตรวจนับพัสดุและบันทึกจำนวน
             </div>
           </div>
         </div>
 
         {/* ACTION BUTTONS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div className="space-y-2 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              onClick={handleTestOpen}
+              className="py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+              title="ทดสอบเปิดหน้าลงชื่อและตรวจนับของตู้นี้ทันที"
+            >
+              <span className="material-symbols-outlined text-base text-indigo-400">open_in_new</span>
+              <span>ทดสอบเปิดหน้าตรวจนับตู้นี้</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm shadow-indigo-100 transition-transform active:scale-[0.98] cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">print</span>
+              <span>พิมพ์ป้ายติดหน้าตู้</span>
+            </button>
+          </div>
+
           {qrDataUrl && (
             <a
               href={qrDataUrl}
               download={`QR-${currentCabinet.id}.png`}
-              className="py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-2xs transition-colors"
+              className="w-full py-2 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 shadow-2xs transition-colors"
             >
-              <span className="material-symbols-outlined text-base text-indigo-600">download</span>
-              <span>ดาวน์โหลดภาพ QR (PNG)</span>
+              <span className="material-symbols-outlined text-sm text-slate-500">download</span>
+              <span>ดาวน์โหลดรูปภาพ QR Code (PNG)</span>
             </a>
           )}
-
-          <button
-            onClick={handlePrint}
-            className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm shadow-indigo-100 transition-transform active:scale-[0.98]"
-          >
-            <span className="material-symbols-outlined text-base">print</span>
-            <span>พิมพ์ป้ายติดหน้าตู้</span>
-          </button>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ interface CabinetsViewProps {
   onOpenPrintModal: (cabinet: Cabinet) => void;
   onOpenScanQR: () => void;
   onSelectCabinetForTerminal: (cabinetId: string) => void;
+  onStartAudit?: (cabinetId: string) => void;
 }
 
 export const CabinetsView: React.FC<CabinetsViewProps> = ({
@@ -13,6 +14,7 @@ export const CabinetsView: React.FC<CabinetsViewProps> = ({
   onOpenPrintModal,
   onOpenScanQR,
   onSelectCabinetForTerminal,
+  onStartAudit,
 }) => {
   const [selectedZone, setSelectedZone] = useState<string>('all');
   const [searchCabinet, setSearchCabinet] = useState<string>('');
@@ -292,13 +294,24 @@ export const CabinetsView: React.FC<CabinetsViewProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={() => onOpenPrintModal(selectedCabinet)}
-              className="mt-3 w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-indigo-100 active:scale-[0.99]"
-            >
-              <span className="material-symbols-outlined text-base">print</span>
-              <span>พิมพ์ป้าย QR เคลือบพลาสติก</span>
-            </button>
+            <div className="mt-3 space-y-2">
+              {onStartAudit && (
+                <button
+                  onClick={() => onStartAudit(selectedCabinet.id)}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs active:scale-[0.99] cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base text-indigo-400">checklist</span>
+                  <span>เปิดหน้าตรวจนับสต็อกตู้นี้ (Audit View)</span>
+                </button>
+              )}
+              <button
+                onClick={() => onOpenPrintModal(selectedCabinet)}
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-indigo-100 active:scale-[0.99] cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">print</span>
+                <span>พิมพ์ป้าย QR เคลือบพลาสติก</span>
+              </button>
+            </div>
           </div>
 
           {/* LIST OF SKUS IN THIS CABINET */}
