@@ -31,32 +31,29 @@ export const CabinetAuditView: React.FC<CabinetAuditViewProps> = ({
 }) => {
   // Find consumables for this cabinet
   const cabinetItems = useMemo(() => {
-    const shortCode = cabinet.id.replace('CAB-', '');
-    let matched = items.filter(
-      (it) =>
-        it.cabinetId.toLowerCase().includes(shortCode.toLowerCase()) ||
-        it.cabinetId.toLowerCase().includes(cabinet.name.toLowerCase()) ||
-        it.cabinetId.toLowerCase().includes(cabinet.id.toLowerCase())
-    );
+    const normCabId = cabinet.id.toLowerCase().replace(/[\s-_]/g, '');
+    const cleanCabCode = normCabId.replace('cab', '');
+    const normCabName = cabinet.name.toLowerCase().replace(/[\s-_]/g, '');
 
-    // Fallback: If no direct items matched for this cabinet, pick 3-4 relevant items
-    if (matched.length === 0) {
-      if (cabinet.id.includes('A')) {
-        matched = items
-          .filter((it) => it.department.includes('หล่อลื่น') || it.department.includes('ซ่อมบำรุง') || it.department === 'Maintenance')
-          .slice(0, 4);
-      } else if (cabinet.id.includes('B')) {
-        matched = items
-          .filter((it) => it.department.includes('เซฟตี้') || it.department.includes('ความปลอดภัย') || it.department === 'Safety')
-          .slice(0, 4);
-      } else if (cabinet.id.includes('QA')) {
-        matched = items
-          .filter((it) => it.department.includes('เคมี') || it.department.includes('ตรวจสอบ') || it.department === 'QA/QC')
-          .slice(0, 4);
-      } else {
-        matched = items.slice(0, 4);
-      }
-    }
+    const matched = items.filter((it) => {
+      const normItemCab = it.cabinetId.toLowerCase().replace(/[\s-_]/g, '');
+      const cleanItemCab = normItemCab.replace('cab', '').replace('ตู้', '');
+
+      const cabIdMatches =
+        normItemCab.includes(normCabId) ||
+        normCabId.includes(normItemCab) ||
+        cleanItemCab === cleanCabCode ||
+        normItemCab.includes(cleanCabCode) ||
+        cleanItemCab.includes(cleanCabCode) ||
+        normCabName.includes(normItemCab) ||
+        normItemCab.includes(normCabName);
+
+      const skuMatches = cabinet.items?.some(
+        (ci) => ci.sku.toLowerCase() === it.sku.toLowerCase()
+      );
+
+      return cabIdMatches || skuMatches;
+    });
 
     return matched;
   }, [items, cabinet]);
