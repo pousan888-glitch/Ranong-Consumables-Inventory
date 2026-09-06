@@ -1,6 +1,6 @@
 {
   "name": "Ranong Operations Consumables Hub",
   "description": "ระบบบริหารจัดการสต็อกวัสดุสิ้นเปลือง ตรวจนับหน้าตู้ QR Code และเบิกจ่ายพัสดุ ท่าเรือระนอง",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

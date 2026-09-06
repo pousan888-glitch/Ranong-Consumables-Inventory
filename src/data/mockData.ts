@@ -529,6 +529,20 @@ export const initialRequisitions: RequisitionRecord[] = [
 
 export const initialUsers: UserStaff[] = [
   {
+    id: 'usr-pousan',
+    name: 'Pousan (Super Admin)',
+    empId: 'SA-0001',
+    email: 'pousan888@gmail.com',
+    titleTh: 'ผู้ดูแลระบบคลังพัสดุสูงสุด (Super Admin & System Owner)',
+    role: 'super_admin',
+    roleNameTh: 'Super Admin',
+    zones: ['All Zones (ทั้งหมด)'],
+    status: 'active',
+    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAmGyJwy0oXWgz-y9S-nfXa_5xH7ObWeAFGH2FHNGQOiGX0TTJCtja8A4NJT0M9OnR1xdq4ef65vDht4o-S6N0NMqWzq3JybaioJzBsyGNqXLX9XEW-gijMcnUWvFaLmmzWvyUBTK90LtDVSBFZsj6aFAATKyZWx8Fe4SHINozdUWpTOyc-cw5TUMn-lGuARHRNU5us25ohQ_gG14Oc6g7R0jBGTvI8-m8yNP3ju-LhrDdbplquYk1O',
+    assignedBy: 'System Root Policy (สิทธิ์สูงสุด)',
+    assignedTime: 'สิทธิ์ถาวร (Permanent Root)',
+  },
+  {
     id: 'usr-1',
     name: 'ธนกร เจริญผล',
     empId: 'EMP-8841',

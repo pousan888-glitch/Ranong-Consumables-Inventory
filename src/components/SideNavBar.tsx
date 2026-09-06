@@ -148,8 +148,13 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
                   </div>
                 )}
                 <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-slate-800 truncate">
-                    {googleUser.displayName || googleUser.email?.split('@')[0]}
+                  <div className="text-[11px] font-bold text-slate-800 truncate flex items-center gap-1">
+                    <span className="truncate">{googleUser.displayName || googleUser.email?.split('@')[0]}</span>
+                    {googleUser.email?.toLowerCase() === 'pousan888@gmail.com' && (
+                      <span className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 text-[8px] font-bold shrink-0">
+                        SUPER ADMIN
+                      </span>
+                    )}
                   </div>
                   <div className="text-[10px] text-slate-500 truncate font-mono">
                     {googleUser.email}

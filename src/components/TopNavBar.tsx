@@ -212,10 +212,17 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
               </div>
             )}
             <div className="hidden xl:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-900 leading-tight">
-                {googleUser?.displayName || (googleUser?.email ? googleUser.email.split('@')[0] : 'เจ้าหน้าที่คลัง')}
-              </span>
-              <span className="text-[10px] font-medium text-slate-500 truncate max-w-[120px]">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-900 leading-tight">
+                  {googleUser?.displayName || (googleUser?.email ? googleUser.email.split('@')[0] : 'เจ้าหน้าที่คลัง')}
+                </span>
+                {googleUser?.email?.toLowerCase() === 'pousan888@gmail.com' && (
+                  <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-bold text-[9px] border border-purple-200 uppercase tracking-wide">
+                    Super Admin
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-medium text-slate-500 truncate max-w-[150px]">
                 {googleUser?.email || 'Admin คลังพัสดุ'}
               </span>
             </div>
@@ -253,15 +260,24 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-slate-900 truncate">
-                    {googleUser?.displayName || 'เจ้าหน้าที่คลังพัสดุ'}
+                  <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-1">
+                    <span>{googleUser?.displayName || 'เจ้าหน้าที่คลังพัสดุ'}</span>
+                    {googleUser?.email?.toLowerCase() === 'pousan888@gmail.com' && (
+                      <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 text-[9px] font-bold">
+                        Super Admin
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] text-slate-500 font-mono truncate">
                     {googleUser?.email || 'google@user.com'}
                   </div>
-                  <div className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span>Firebase Auth Verified</span>
+                  <div className="inline-flex items-center gap-1 text-[10px] text-purple-700 font-semibold mt-0.5">
+                    <span className="material-symbols-outlined text-xs text-purple-600">shield_person</span>
+                    <span>
+                      {googleUser?.email?.toLowerCase() === 'pousan888@gmail.com'
+                        ? 'Super Admin (สิทธิ์สูงสุด)'
+                        : 'Firebase Auth Verified'}
+                    </span>
                   </div>
                 </div>
               </div>

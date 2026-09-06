@@ -61,6 +61,9 @@ export default function App() {
   const [isPrintQRModalOpen, setIsPrintQRModalOpen] = useState(false);
   const [selectedCabinetForPrint, setSelectedCabinetForPrint] = useState<Cabinet | null>(null);
 
+  // Selected Cabinet for Helper Terminal
+  const [selectedCabinetIdForTerminal, setSelectedCabinetIdForTerminal] = useState<string>('CAB-C03');
+
   // Banner/Toast message
   const [globalToast, setGlobalToast] = useState<string | null>(null);
 
@@ -75,6 +78,48 @@ export default function App() {
       (user) => {
         setGoogleUser(user);
         setIsAuthLoading(false);
+
+        // Sync and ensure pousan888@gmail.com (and authenticated user) has Super Admin status
+        if (user.email) {
+          const userEmail = user.email.toLowerCase();
+          const isSuperAdminEmail = userEmail === 'pousan888@gmail.com';
+
+          setUsers((prevUsers) => {
+            const index = prevUsers.findIndex((u) => u.email.toLowerCase() === userEmail);
+            if (index !== -1) {
+              return prevUsers.map((u, i) => {
+                if (i === index) {
+                  return {
+                    ...u,
+                    name: user.displayName || u.name,
+                    avatar: user.photoURL || u.avatar,
+                    role: isSuperAdminEmail ? 'super_admin' : u.role,
+                    roleNameTh: isSuperAdminEmail ? 'Super Admin' : u.roleNameTh,
+                    zones: isSuperAdminEmail ? ['All Zones (ทั้งหมด)'] : u.zones,
+                    status: 'active',
+                  };
+                }
+                return u;
+              });
+            } else {
+              const newUser: UserStaff = {
+                id: `usr-${user.uid.slice(0, 8)}`,
+                name: user.displayName || (user.email ? user.email.split('@')[0] : 'ผู้ใช้งาน Google'),
+                empId: isSuperAdminEmail ? 'SA-0001' : `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+                email: user.email || '',
+                titleTh: isSuperAdminEmail ? 'ผู้ดูแลระบบคลังพัสดุสูงสุด (Super Admin & System Owner)' : 'เจ้าหน้าที่คลังพัสดุ',
+                role: isSuperAdminEmail ? 'super_admin' : 'helper',
+                roleNameTh: isSuperAdminEmail ? 'Super Admin' : 'Helper',
+                zones: isSuperAdminEmail ? ['All Zones (ทั้งหมด)'] : ['Zone A'],
+                status: 'active',
+                avatar: user.photoURL || '',
+                assignedBy: isSuperAdminEmail ? 'System Root Policy (สิทธิ์สูงสุด)' : 'Auto Assigned',
+                assignedTime: 'เข้าใช้งานระบบปัจจุบัน',
+              };
+              return [newUser, ...prevUsers];
+            }
+          });
+        }
       },
       () => {
         setGoogleUser(null);
@@ -147,33 +192,66 @@ export default function App() {
   };
 
   // Helper mode handlers
-  const handleAuditCompleted = (cabinetId: string, summary: string) => {
-    setCabinets(
-      cabinets.map((c) =>
+  const handleAuditCompleted = (
+    cabinetId: string,
+    summary: string,
+    updatedCounts?: Record<string, number>
+  ) => {
+    const auditorName =
+      googleUser?.displayName ||
+      (googleUser?.email ? googleUser.email.split('@')[0] : 'Helper พิเชษฐ์');
+
+    setCabinets((prevCabs) =>
+      prevCabs.map((c) =>
         c.id === cabinetId
           ? {
               ...c,
               status: 'counted',
               statusTextTh: 'ตรวจแล้ว เรียบร้อย',
               lastAuditTime: 'วันนี้ เพิ่งตรวจเสร็จ',
-              auditor: 'Helper พิเชษฐ์',
+              auditor: `Helper ${auditorName}`,
             }
           : c
       )
     );
 
-    setAuditFeed([
+    // If counts were adjusted during audit, update items balance!
+    if (updatedCounts && Object.keys(updatedCounts).length > 0) {
+      setItems((prev) =>
+        prev.map((it) => {
+          if (updatedCounts[it.sku] !== undefined) {
+            const newBal = updatedCounts[it.sku];
+            const nextStatus =
+              newBal <= it.safetyMin * 0.3
+                ? 'critical'
+                : newBal <= it.safetyMin
+                ? 'low'
+                : 'normal';
+            return {
+              ...it,
+              balance: newBal,
+              status: nextStatus,
+            };
+          }
+          return it;
+        })
+      );
+    }
+
+    setAuditFeed((prevFeed) => [
       {
         id: `feed-${Date.now()}`,
         cabinetId: cabinetId,
         title: `ตรวจนับ ${cabinetId} เสร็จสิ้น`,
-        detail: `ผู้ตรวจ: พิเชษฐ์ • เพิ่งตรวจเสร็จ (${summary})`,
+        detail: `ผู้ตรวจ: ${auditorName} • (${summary})`,
         time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-        auditor: 'Helper พิเชษฐ์',
+        auditor: auditorName,
         type: 'done',
       },
-      ...auditFeed,
+      ...prevFeed,
     ]);
+
+    showGlobalToast(`บันทึกการตรวจนับตู้ ${cabinetId} สำเร็จ`);
   };
 
   // Item Disbursement handler
@@ -245,6 +323,10 @@ export default function App() {
     newRole: UserStaff['role'],
     newZones: string[]
   ) => {
+    if (!isSuperAdmin) {
+      showGlobalToast('ข้อผิดพลาด: เฉพาะ Super Admin (pousan888@gmail.com) เท่านั้นที่สามารถแก้ไขสิทธิ์ได้');
+      return;
+    }
     const roleNames: Record<UserStaff['role'], string> = {
       super_admin: 'Super Admin',
       warehouse_admin: 'Admin คลัง',
@@ -259,7 +341,7 @@ export default function App() {
               role: newRole,
               roleNameTh: roleNames[newRole],
               zones: newZones,
-              assignedBy: 'สมชาย วงศ์ปรีดา (Admin คลัง)',
+              assignedBy: `${googleUser?.displayName || 'Super Admin'} (Super Admin)`,
               assignedTime: 'วันนี้ เพิ่งปรับปรุง',
             }
           : u
@@ -274,9 +356,22 @@ export default function App() {
   };
 
   const handleSelectCabinetForTerminal = (cabId: string) => {
+    setSelectedCabinetIdForTerminal(cabId);
     setActiveTab('helper');
     showGlobalToast(`เปิดโหมดตรวจนับหน้าตู้ ${cabId}`);
   };
+
+  // Derive Current Staff Profile & Roles
+  const currentUserStaff = React.useMemo(() => {
+    if (!googleUser?.email) return null;
+    return users.find((u) => u.email.toLowerCase() === googleUser.email!.toLowerCase()) || null;
+  }, [googleUser, users]);
+
+  const isSuperAdmin =
+    currentUserStaff?.role === 'super_admin' ||
+    googleUser?.email?.toLowerCase() === 'pousan888@gmail.com';
+
+  const isHelperOnly = currentUserStaff?.role === 'helper';
 
   // Auth Loading Gate
   if (isAuthLoading) {
@@ -303,6 +398,44 @@ export default function App() {
           showGlobalToast(`ลงชื่อเข้าใช้สำเร็จ: ยินดีต้อนรับ ${user.displayName || user.email}`);
         }}
       />
+    );
+  }
+
+  // RESTRICT HELPER ACCOUNTS: Helpers can ONLY access the Helper Mode view!
+  if (isHelperOnly) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#071322] text-slate-100 font-sans antialiased selection:bg-indigo-600 selection:text-white">
+        {/* GLOBAL TOAST NOTIFICATION */}
+        {globalToast && (
+          <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl border border-slate-800 text-xs font-semibold flex items-center gap-2.5 animate-slide-in">
+            <span className="material-symbols-outlined text-base text-indigo-400">
+              check_circle
+            </span>
+            <span>{globalToast}</span>
+          </div>
+        )}
+
+        <HelperModeView
+          onAuditCompleted={handleAuditCompleted}
+          onItemIssued={handleItemIssued}
+          items={items}
+          cabinets={cabinets}
+          selectedCabinetId={selectedCabinetIdForTerminal}
+          onSelectCabinetId={setSelectedCabinetIdForTerminal}
+          onOpenScanQR={() => setIsScanQRModalOpen(true)}
+          isHelperOnly={true}
+          googleUser={googleUser}
+          onLogout={handleLogout}
+        />
+
+        {/* QR Scanner for Helper */}
+        <ScanQRModal
+          isOpen={isScanQRModalOpen}
+          onClose={() => setIsScanQRModalOpen(false)}
+          cabinets={cabinets}
+          onCabinetScanned={(cabId) => handleSelectCabinetForTerminal(cabId)}
+        />
+      </div>
     );
   }
 
@@ -373,6 +506,12 @@ export default function App() {
             onItemIssued={handleItemIssued}
             items={items}
             cabinets={cabinets}
+            selectedCabinetId={selectedCabinetIdForTerminal}
+            onSelectCabinetId={setSelectedCabinetIdForTerminal}
+            onOpenScanQR={() => setIsScanQRModalOpen(true)}
+            isHelperOnly={false}
+            googleUser={googleUser}
+            onLogout={handleLogout}
           />
         )}
 
@@ -413,6 +552,7 @@ export default function App() {
             onUpdateUserRole={handleUpdateUserRole}
             googleUser={googleUser}
             onLogout={handleLogout}
+            isSuperAdmin={isSuperAdmin}
           />
         )}
       </div>

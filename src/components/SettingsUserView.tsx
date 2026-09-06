@@ -7,6 +7,7 @@ interface SettingsUserViewProps {
   onUpdateUserRole: (userId: string, newRole: UserStaff['role'], zones: string[]) => void;
   googleUser?: User | null;
   onLogout?: () => void;
+  isSuperAdmin?: boolean;
 }
 
 export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
@@ -14,6 +15,7 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
   onUpdateUserRole,
   googleUser,
   onLogout,
+  isSuperAdmin = false,
 }) => {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<UserStaff>(users[0]);
@@ -28,6 +30,7 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
   };
 
   const toggleZone = (zoneName: string) => {
+    if (!isSuperAdmin) return;
     if (editedZones.includes(zoneName)) {
       setEditedZones(editedZones.filter((z) => z !== zoneName));
     } else {
@@ -36,6 +39,10 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
   };
 
   const handleSavePermissions = () => {
+    if (!isSuperAdmin) {
+      alert('ข้อผิดพลาด: เฉพาะ Super Admin (pousan888@gmail.com) เท่านั้นที่สามารถแก้ไขสิทธิการใช้งานได้');
+      return;
+    }
     onUpdateUserRole(selectedUser.id, editedRole, editedZones);
     setToastMessage(`บันทึกการปรับสิทธิ์ของ ${selectedUser.name} เรียบร้อยแล้ว`);
     setTimeout(() => setToastMessage(null), 3000);
@@ -79,6 +86,23 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
         </button>
       </div>
 
+      {/* SUPER ADMIN SECURITY NOTICE BANNER */}
+      {!isSuperAdmin && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3.5 text-amber-900 text-xs">
+          <span className="material-symbols-outlined text-amber-600 text-2xl shrink-0 mt-0.5">
+            security
+          </span>
+          <div className="space-y-0.5">
+            <div className="font-bold text-amber-950 text-sm">
+              โหมดแสดงสิทธิ์เท่านั้น (Read-Only Access)
+            </div>
+            <div className="text-amber-800 leading-relaxed">
+              ไม่มีใครสามารถแก้ไขสิทธิการใช้งานได้ยกเว้น <strong>Super Admin (pousan888@gmail.com)</strong> บัญชีปัจจุบันของคุณสามารถเรียกดูข้อมูลสิทธิ์และผังโครงสร้างบุคลากรได้เท่านั้น แต่ไม่สามารถปรับเปลี่ยนบทบาทได้
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ACTIVE GOOGLE AUTHENTICATION SESSION CARD */}
       {googleUser && (
         <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -87,25 +111,39 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
               <img
                 src={googleUser.photoURL}
                 alt={googleUser.displayName || 'Google User'}
-                className="w-12 h-12 rounded-full border-2 border-indigo-100 object-cover"
+                className="w-12 h-12 rounded-full border-2 border-purple-200 object-cover"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-indigo-600 text-white font-bold text-base flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-purple-600 text-white font-bold text-base flex items-center justify-center">
                 {(googleUser.displayName || googleUser.email || 'U')[0].toUpperCase()}
               </div>
             )}
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-bold text-slate-900">
                   {googleUser.displayName || 'ผู้ใช้งาน Google'}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  <span>Google Authenticated</span>
-                </span>
+                {googleUser.email?.toLowerCase() === 'pousan888@gmail.com' ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300 text-xs font-bold">
+                    <span className="material-symbols-outlined text-sm">shield_person</span>
+                    <span>Super Admin (สิทธิ์สูงสุดเต็มระบบ)</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>Google Authenticated</span>
+                  </span>
+                )}
               </div>
-              <div className="text-xs text-slate-500 font-mono mt-0.5">{googleUser.email}</div>
+              <div className="text-xs text-slate-600 font-mono mt-0.5 flex items-center gap-2 flex-wrap">
+                <span>{googleUser.email}</span>
+                {googleUser.email?.toLowerCase() === 'pousan888@gmail.com' && (
+                  <span className="text-[11px] text-purple-700 font-medium bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
+                    เข้าถึงทุกโซน • อนุมัติ PR ทุกวงเงิน • สิทธิ์จัดการพนักงาน
+                  </span>
+                )}
+              </div>
               <div className="text-[11px] text-slate-400 mt-0.5">
                 UID: <span className="font-mono">{googleUser.uid.slice(0, 16)}...</span> • โปรเจกต์ Firebase: Warehouse Consumables Monitor
               </div>
@@ -129,22 +167,30 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">ผู้ใช้งานทั้งหมด (TOTAL STAFF)</div>
-          <div className="font-mono text-3xl font-bold text-slate-900 mt-1">38 คน</div>
-          <div className="text-xs text-slate-500 mt-1">Active ในกะวันนี้ 26 คน</div>
+          <div className="font-mono text-3xl font-bold text-slate-900 mt-1">{users.length} คน</div>
+          <div className="text-xs text-slate-500 mt-1">พร้อมใช้งานในระบบท่าเรือ</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <div className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">ผู้ดูแลระบบ (ADMINS)</div>
-          <div className="font-mono text-3xl font-bold text-indigo-600 mt-1">4 คน</div>
-          <div className="text-xs text-slate-500 mt-1">สิทธิ์อนุมัติการสั่งซื้อ PR</div>
+          <div className="text-[11px] font-bold text-purple-700 uppercase tracking-wider">SUPER ADMIN & ADMINS</div>
+          <div className="font-mono text-3xl font-bold text-purple-700 mt-1">
+            {users.filter((u) => u.role === 'super_admin' || u.role === 'warehouse_admin').length} คน
+          </div>
+          <div className="text-xs text-slate-500 mt-1">
+            รวม Super Admin ({users.filter((u) => u.role === 'super_admin').length})
+          </div>
         </div>
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">เจ้าหน้าที่ปฏิบัติการ (HELPERS)</div>
-          <div className="font-mono text-3xl font-bold text-slate-900 mt-1">22 คน</div>
+          <div className="font-mono text-3xl font-bold text-slate-900 mt-1">
+            {users.filter((u) => u.role === 'helper').length} คน
+          </div>
           <div className="text-xs text-slate-500 mt-1">สิทธิ์สแกนหน้าตู้และเบิกของ</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <div className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">ฝ่ายตรวจสอบคุณภาพ (QA/QC)</div>
-          <div className="font-mono text-3xl font-bold text-emerald-600 mt-1">12 คน</div>
+          <div className="font-mono text-3xl font-bold text-emerald-600 mt-1">
+            {users.filter((u) => u.role === 'qa_qc').length} คน
+          </div>
           <div className="text-xs text-slate-500 mt-1">สิทธิ์เบิกสารเคมีและตรวจตู้แล็บ</div>
         </div>
       </div>
@@ -152,11 +198,11 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
       {/* ROLE FILTER TABS */}
       <div className="flex items-center gap-1.5 flex-wrap">
         {[
-          { id: 'all', label: 'ทั้งหมด (38)' },
-          { id: 'super_admin', label: 'Super Admin (1)' },
-          { id: 'warehouse_admin', label: 'Admin คลัง (3)' },
-          { id: 'helper', label: 'Helper ภาคสนาม (22)' },
-          { id: 'qa_qc', label: 'QA/QC Lab (12)' },
+          { id: 'all', label: `ทั้งหมด (${users.length})` },
+          { id: 'super_admin', label: `Super Admin (${users.filter((u) => u.role === 'super_admin').length})` },
+          { id: 'warehouse_admin', label: `Admin คลัง (${users.filter((u) => u.role === 'warehouse_admin').length})` },
+          { id: 'helper', label: `Helper ภาคสนาม (${users.filter((u) => u.role === 'helper').length})` },
+          { id: 'qa_qc', label: `QA/QC Lab (${users.filter((u) => u.role === 'qa_qc').length})` },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -274,9 +320,13 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
                             e.stopPropagation();
                             handleSelectUser(u);
                           }}
-                          className="px-2.5 py-1 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${
+                            isSuperAdmin
+                              ? 'text-indigo-600 hover:bg-indigo-50'
+                              : 'text-slate-500 hover:bg-slate-100'
+                          }`}
                         >
-                          แก้ไขสิทธิ์
+                          {isSuperAdmin ? 'แก้ไขสิทธิ์' : 'ดูสิทธิ์'}
                         </button>
                       </td>
                     </tr>
@@ -298,8 +348,17 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
                 {selectedUser.empId}
               </span>
             </div>
-            <h2 className="text-base font-bold text-slate-900 mt-1">กำหนดสิทธิ์ผู้ใช้งาน</h2>
+            <h2 className="text-base font-bold text-slate-900 mt-1">
+              {isSuperAdmin ? 'กำหนดสิทธิ์ผู้ใช้งาน' : 'รายละเอียดสิทธิ์ผู้ใช้งาน'}
+            </h2>
           </div>
+
+          {!isSuperAdmin && (
+            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-800">
+              <span className="material-symbols-outlined text-amber-600 text-sm">lock</span>
+              <span>เฉพาะ Super Admin (pousan888@gmail.com) เท่านั้นที่สามารถแก้ไขสิทธิ์ได้</span>
+            </div>
+          )}
 
           {/* User Preview */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3">
@@ -340,7 +399,7 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
                 {
                   role: 'helper' as const,
                   title: 'Helper (Field Ops)',
-                  desc: 'สแกน QR ตรวจนับสต็อกหน้าตู้ และเบิกจ่ายด่วน',
+                  desc: 'สแกน QR ตรวจนับสต็อกหน้าตู้ และเบิกจ่ายด่วน (เข้าได้เฉพาะหน้า Helper)',
                 },
                 {
                   role: 'qa_qc' as const,
@@ -350,18 +409,19 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
               ].map((r) => (
                 <label
                   key={r.role}
-                  className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
-                    editedRole === r.role
-                      ? 'bg-indigo-50/50 border-indigo-500 ring-1 ring-indigo-500/20'
-                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                  className={`flex items-start gap-2.5 p-3 rounded-xl border transition-all ${
+                    !isSuperAdmin
+                      ? 'cursor-not-allowed opacity-80 ' + (editedRole === r.role ? 'bg-slate-100 border-slate-300' : 'bg-white border-slate-200')
+                      : 'cursor-pointer ' + (editedRole === r.role ? 'bg-indigo-50/50 border-indigo-500 ring-1 ring-indigo-500/20' : 'bg-white border-slate-200 hover:bg-slate-50')
                   }`}
                 >
                   <input
                     type="radio"
                     name="editedRole"
                     checked={editedRole === r.role}
-                    onChange={() => setEditedRole(r.role)}
-                    className="mt-0.5 text-indigo-600 focus:ring-0"
+                    onChange={() => isSuperAdmin && setEditedRole(r.role)}
+                    disabled={!isSuperAdmin}
+                    className="mt-0.5 text-indigo-600 focus:ring-0 disabled:opacity-50"
                   />
                   <div>
                     <div className="font-bold text-slate-900">{r.title}</div>
@@ -387,13 +447,18 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
                 return (
                   <label
                     key={zone}
-                    className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border transition-colors ${
+                      !isSuperAdmin
+                        ? 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-80'
+                        : 'border-slate-200 bg-white cursor-pointer hover:bg-slate-50'
+                    }`}
                   >
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={() => toggleZone(zoneCode)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-0"
+                      onChange={() => isSuperAdmin && toggleZone(zoneCode)}
+                      disabled={!isSuperAdmin}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-0 disabled:opacity-50"
                     />
                     <span className="text-xs text-slate-900 font-medium">{zone}</span>
                   </label>
@@ -413,16 +478,25 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
           <div className="flex items-center gap-2 pt-1">
             <button
               onClick={handleSavePermissions}
-              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-100 transition-transform active:scale-[0.98]"
+              disabled={!isSuperAdmin}
+              className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 font-bold text-xs transition-all ${
+                isSuperAdmin
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-200 active:scale-[0.98] cursor-pointer'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+              }`}
             >
-              <span className="material-symbols-outlined text-base">save</span>
-              <span>บันทึกสิทธิ์ (Save Permissions)</span>
+              <span className="material-symbols-outlined text-base">
+                {isSuperAdmin ? 'save' : 'lock'}
+              </span>
+              <span>
+                {isSuperAdmin ? 'บันทึกสิทธิ์ (Super Admin Only)' : '🔒 เฉพาะ Super Admin ที่แก้ไขได้'}
+              </span>
             </button>
             <button
               onClick={() => handleSelectUser(selectedUser)}
-              className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-xl transition-colors"
+              className="px-4 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
             >
-              ยกเลิก
+              รีเซ็ต
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from 'firebase/auth';
-import { googleSignIn, logoutGoogle } from '../services/firebaseAuth';
+import { googleSignIn, requestGoogleSheetsAccess, logoutGoogle } from '../services/firebaseAuth';
 import { syncInventoryToGoogleSheets, exportToCSV } from '../services/sheetsService';
 import { ConsumableItem, RequisitionRecord, Cabinet } from '../types';
 
@@ -36,18 +36,18 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
   const handleSignIn = async () => {
     try {
       setIsSigningIn(true);
-      const res = await googleSignIn();
+      const res = await requestGoogleSheetsAccess();
       if (res?.user) {
         onUserChanged(res.user);
         setSyncStatus({
           type: 'success',
-          message: `ลงชื่อเข้าใช้สำเร็จ: ${res.user.email}`,
+          message: `เชื่อมต่อบัญชีสำเร็จ: ${res.user.email} (พร้อมสิทธิ์ซิงค์ Google Sheets)`,
         });
       }
     } catch (err: any) {
       setSyncStatus({
         type: 'error',
-        message: err.message || 'เกิดข้อผิดพลาดในการลงชื่อเข้าใช้ Google',
+        message: err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Google Sheets',
       });
     } finally {
       setIsSigningIn(false);

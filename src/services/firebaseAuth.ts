@@ -13,10 +13,16 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-const provider = new GoogleAuthProvider();
-// Google Sheets Scope for full inventory sync
-provider.addScope('https://www.googleapis.com/auth/spreadsheets');
-provider.setCustomParameters({
+// Standard Login Provider (Email, Profile, OpenID only - NO Sensitive Scope warnings)
+const loginProvider = new GoogleAuthProvider();
+loginProvider.setCustomParameters({
+  prompt: 'select_account',
+});
+
+// Dedicated Google Sheets Provider (used only when requesting Sheets sync)
+const sheetsProvider = new GoogleAuthProvider();
+sheetsProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+sheetsProvider.setCustomParameters({
   prompt: 'select_account',
 });
 
@@ -42,12 +48,12 @@ export const initAuth = (
 };
 
 /**
- * Sign in with Google Popup and obtain Google Sheets OAuth access token
+ * Standard Sign in with Google Popup (Clean, fast, without sensitive scope warnings)
  */
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string | null } | null> => {
   try {
     isSigningIn = true;
-    const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, loginProvider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (credential?.accessToken) {
       cachedAccessToken = credential.accessToken;
@@ -56,6 +62,27 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Google Sign-in error:', error);
+    throw error;
+  } finally {
+    isSigningIn = false;
+  }
+};
+
+/**
+ * Request Google Sheets OAuth Access Token for live sync
+ */
+export const requestGoogleSheetsAccess = async (): Promise<{ user: User; accessToken: string } | null> => {
+  try {
+    isSigningIn = true;
+    const result = await signInWithPopup(auth, sheetsProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (!credential?.accessToken) {
+      throw new Error('ไม่ได้รับ Access Token สำหรับ Google Sheets');
+    }
+    cachedAccessToken = credential.accessToken;
+    return { user: result.user, accessToken: cachedAccessToken };
+  } catch (error: any) {
+    console.error('Google Sheets Authorization error:', error);
     throw error;
   } finally {
     isSigningIn = false;
