@@ -12,6 +12,7 @@ interface TopNavBarProps {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   notificationCount: number;
+  onLogout?: () => void;
 }
 
 export const TopNavBar: React.FC<TopNavBarProps> = ({
@@ -24,7 +25,9 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   searchQuery,
   setSearchQuery,
   notificationCount,
+  onLogout,
 }) => {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = React.useState(false);
   return (
     <header className="flex justify-between items-center w-full px-4 lg:px-8 h-16 max-w-full border-b border-slate-200 bg-white sticky top-0 z-30 shrink-0">
       {/* Left: Brand & Main Navigation */}
@@ -189,21 +192,119 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           </button>
         </div>
 
-        {/* User Profile Badge */}
-        <div 
-          onClick={() => setActiveTab('settings')}
-          className="flex items-center gap-2 pl-2 border-l border-slate-200 cursor-pointer hover:opacity-90"
-        >
-          <img
-            className="w-8 h-8 rounded-full border border-slate-200 object-cover shadow-2xs"
-            alt="สมชาย Admin คลังพัสดุ"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCH2gl_4Z6HdjzIPaqjUAfkJgIpY8fXoo5s7ph8-DiKO2pEPT89vL_hewmSmD_nNGLhSSDnxPdGQ2Ddvr-e6hQ0O09eZPPGAdCa3B1NW5RIq5JCz5-_DFgRRA86LsBuU2RQTIergs5JIFu3vgDJiNq6U86ze2UuIS6eQR0v1EcFVoWhifuH05AnBcXtgyP1-FUxJgAQJDreIj5d84Ph0ZslL8am8tB1jbUCiyXHG4bjCY9oRkR4ncWJ"
-            referrerPolicy="no-referrer"
-          />
-          <div className="hidden xl:flex flex-col text-left">
-            <span className="text-xs font-semibold text-slate-900 leading-tight">สมชาย ว.</span>
-            <span className="text-[10px] font-medium text-slate-500">Admin คลังพัสดุ</span>
+        {/* User Profile Badge & Logout */}
+        <div className="relative flex items-center gap-2 pl-2 border-l border-slate-200">
+          <div 
+            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+            className="flex items-center gap-2 cursor-pointer hover:opacity-90 py-1"
+            title="คลิกเพื่อดูข้อมูลบัญชี Google"
+          >
+            {googleUser?.photoURL ? (
+              <img
+                className="w-8 h-8 rounded-full border border-slate-200 object-cover shadow-2xs"
+                alt={googleUser.displayName || 'Google User'}
+                src={googleUser.photoURL}
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center border border-indigo-200">
+                {(googleUser?.displayName || googleUser?.email || 'U')[0].toUpperCase()}
+              </div>
+            )}
+            <div className="hidden xl:flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-900 leading-tight">
+                {googleUser?.displayName || (googleUser?.email ? googleUser.email.split('@')[0] : 'เจ้าหน้าที่คลัง')}
+              </span>
+              <span className="text-[10px] font-medium text-slate-500 truncate max-w-[120px]">
+                {googleUser?.email || 'Admin คลังพัสดุ'}
+              </span>
+            </div>
+            <span className="material-symbols-outlined text-base text-slate-400">
+              {isProfileMenuOpen ? 'expand_less' : 'expand_more'}
+            </span>
           </div>
+
+          {/* Quick Logout Button */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition-colors shadow-2xs cursor-pointer"
+              title="ออกจากระบบ Google (Sign Out)"
+            >
+              <span className="material-symbols-outlined text-base text-rose-500">logout</span>
+              <span className="hidden lg:inline">ออกจากระบบ</span>
+            </button>
+          )}
+
+          {/* Profile Dropdown Menu */}
+          {isProfileMenuOpen && (
+            <div className="absolute right-0 top-12 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 animate-fade-in space-y-3">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                {googleUser?.photoURL ? (
+                  <img
+                    className="w-10 h-10 rounded-full border border-slate-200 object-cover"
+                    alt={googleUser.displayName || 'User'}
+                    src={googleUser.photoURL}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold text-sm flex items-center justify-center">
+                    {(googleUser?.displayName || googleUser?.email || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-slate-900 truncate">
+                    {googleUser?.displayName || 'เจ้าหน้าที่คลังพัสดุ'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono truncate">
+                    {googleUser?.email || 'google@user.com'}
+                  </div>
+                  <div className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>Firebase Auth Verified</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-xs">
+                <button
+                  onClick={() => {
+                    setActiveTab('settings');
+                    setIsProfileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-left transition-colors font-medium"
+                >
+                  <span className="material-symbols-outlined text-base text-slate-500">settings</span>
+                  <span>ตั้งค่าผู้ใช้งาน & สิทธิ์</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onOpenSheetsModal();
+                    setIsProfileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 hover:text-slate-900 text-left transition-colors font-medium"
+                >
+                  <span className="material-symbols-outlined text-base text-emerald-600">sync</span>
+                  <span>สถานะ Google Sheets Sync</span>
+                </button>
+              </div>
+
+              {onLogout && (
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">logout</span>
+                    <span>ออกจากระบบ Google (Logout)</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { initAuth } from './services/firebaseAuth';
+import { initAuth, logoutGoogle } from './services/firebaseAuth';
 import { exportToCSV } from './services/sheetsService';
 import {
   ActiveNavTab,
@@ -30,6 +30,7 @@ import { CabinetsView } from './components/CabinetsView';
 import { RequisitionView } from './components/RequisitionView';
 import { SettingsUserView } from './components/SettingsUserView';
 import { AuditLogsView } from './components/AuditLogsView';
+import { LoginView } from './components/LoginView';
 
 // Modals
 import { GoogleSheetsModal } from './components/GoogleSheetsModal';
@@ -51,6 +52,7 @@ export default function App() {
 
   // Google User state
   const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
   // Modal states
   const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
@@ -72,13 +74,27 @@ export default function App() {
     const unsubscribe = initAuth(
       (user) => {
         setGoogleUser(user);
+        setIsAuthLoading(false);
       },
       () => {
         setGoogleUser(null);
+        setIsAuthLoading(false);
       }
     );
     return () => unsubscribe();
   }, []);
+
+  // Google Logout Handler
+  const handleLogout = async () => {
+    try {
+      await logoutGoogle();
+      setGoogleUser(null);
+      showGlobalToast('ออกจากระบบเรียบร้อยแล้ว');
+    } catch (err: any) {
+      console.error('Logout error:', err);
+      showGlobalToast('เกิดข้อผิดพลาดในการออกจากระบบ');
+    }
+  };
 
   // Quick PR handlers
   const handleAddItemToPR = (item: ConsumableItem) => {
@@ -262,6 +278,34 @@ export default function App() {
     showGlobalToast(`เปิดโหมดตรวจนับหน้าตู้ ${cabId}`);
   };
 
+  // Auth Loading Gate
+  if (isAuthLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-900 font-sans antialiased">
+        <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200 mb-4 animate-pulse">
+          <span className="material-symbols-outlined text-3xl">inventory_2</span>
+        </div>
+        <div className="text-base font-bold text-slate-900">Ranong Operations Consumables Hub</div>
+        <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm text-indigo-600 animate-spin">progress_activity</span>
+          <span>กำลังตรวจสอบสถานะการลงชื่อเข้าใช้งาน Google...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Authentication Required Gate (Access Restriction)
+  if (!googleUser) {
+    return (
+      <LoginView
+        onLoginSuccess={(user) => {
+          setGoogleUser(user);
+          showGlobalToast(`ลงชื่อเข้าใช้สำเร็จ: ยินดีต้อนรับ ${user.displayName || user.email}`);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-600 selection:text-white">
       {/* GLOBAL TOAST NOTIFICATION */}
@@ -286,6 +330,7 @@ export default function App() {
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           notificationCount={8}
+          onLogout={handleLogout}
         />
       )}
 
@@ -297,6 +342,8 @@ export default function App() {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             onFastScanner={() => setActiveTab('helper')}
+            googleUser={googleUser}
+            onLogout={handleLogout}
           />
         )}
 
@@ -364,6 +411,8 @@ export default function App() {
           <SettingsUserView
             users={users}
             onUpdateUserRole={handleUpdateUserRole}
+            googleUser={googleUser}
+            onLogout={handleLogout}
           />
         )}
       </div>

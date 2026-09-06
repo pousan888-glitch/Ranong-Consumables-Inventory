@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { UserStaff } from '../types';
+import { User } from 'firebase/auth';
 
 interface SettingsUserViewProps {
   users: UserStaff[];
   onUpdateUserRole: (userId: string, newRole: UserStaff['role'], zones: string[]) => void;
+  googleUser?: User | null;
+  onLogout?: () => void;
 }
 
 export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
   users,
   onUpdateUserRole,
+  googleUser,
+  onLogout,
 }) => {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<UserStaff>(users[0]);
@@ -73,6 +78,52 @@ export const SettingsUserView: React.FC<SettingsUserViewProps> = ({
           <span>+ เพิ่มพนักงานใหม่</span>
         </button>
       </div>
+
+      {/* ACTIVE GOOGLE AUTHENTICATION SESSION CARD */}
+      {googleUser && (
+        <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            {googleUser.photoURL ? (
+              <img
+                src={googleUser.photoURL}
+                alt={googleUser.displayName || 'Google User'}
+                className="w-12 h-12 rounded-full border-2 border-indigo-100 object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-indigo-600 text-white font-bold text-base flex items-center justify-center">
+                {(googleUser.displayName || googleUser.email || 'U')[0].toUpperCase()}
+              </div>
+            )}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-900">
+                  {googleUser.displayName || 'ผู้ใช้งาน Google'}
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span>Google Authenticated</span>
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 font-mono mt-0.5">{googleUser.email}</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                UID: <span className="font-mono">{googleUser.uid.slice(0, 16)}...</span> • โปรเจกต์ Firebase: Warehouse Consumables Monitor
+              </div>
+            </div>
+          </div>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl flex items-center gap-2 border border-rose-200 transition-colors self-start sm:self-center cursor-pointer"
+              title="ออกจากระบบ Google ทันที"
+            >
+              <span className="material-symbols-outlined text-base">logout</span>
+              <span>ออกจากระบบ (Logout)</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 4 KPIS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

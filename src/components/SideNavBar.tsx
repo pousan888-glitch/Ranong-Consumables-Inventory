@@ -1,16 +1,21 @@
 import React from 'react';
 import { ActiveNavTab } from '../types';
+import { User } from 'firebase/auth';
 
 interface SideNavBarProps {
   activeTab: ActiveNavTab;
   setActiveTab: (tab: ActiveNavTab) => void;
   onFastScanner: () => void;
+  googleUser?: User | null;
+  onLogout?: () => void;
 }
 
 export const SideNavBar: React.FC<SideNavBarProps> = ({
   activeTab,
   setActiveTab,
   onFastScanner,
+  googleUser,
+  onLogout,
 }) => {
   return (
     <aside className="hidden md:flex flex-col justify-between h-[calc(100vh-4rem)] w-64 p-5 border-r border-slate-200 bg-white shrink-0 select-none overflow-y-auto">
@@ -126,15 +131,52 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
           </button>
         </div>
 
-        <div className="pt-2 border-t border-slate-200 space-y-1">
+        <div className="pt-2 border-t border-slate-200 space-y-2">
+          {googleUser && (
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                {googleUser.photoURL ? (
+                  <img
+                    src={googleUser.photoURL}
+                    alt={googleUser.displayName || 'User'}
+                    className="w-7 h-7 rounded-full border border-slate-200 object-cover shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-indigo-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                    {(googleUser.displayName || googleUser.email || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-800 truncate">
+                    {googleUser.displayName || googleUser.email?.split('@')[0]}
+                  </div>
+                  <div className="text-[10px] text-slate-500 truncate font-mono">
+                    {googleUser.email}
+                  </div>
+                </div>
+              </div>
+
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  title="ออกจากระบบ Google (Sign Out)"
+                >
+                  <span className="material-symbols-outlined text-lg">logout</span>
+                </button>
+              )}
+            </div>
+          )}
+
           <button
             onClick={() => alert('ติดต่อทีมสนับสนุน IT/คลังสินค้า ท่าเรือระนอง\nอีเมล: support@ranonghub.th\nโทร: 077-800-112')}
-            className="w-full flex items-center gap-3 text-slate-500 font-medium text-xs px-3 py-2 rounded-lg hover:bg-slate-50 hover:text-slate-900 text-left transition-colors"
+            className="w-full flex items-center gap-3 text-slate-500 font-medium text-xs px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-slate-900 text-left transition-colors"
           >
             <span className="material-symbols-outlined text-lg">contact_support</span>
             <span>Support</span>
           </button>
-          <div className="px-3 pt-1 text-[10px] font-mono text-slate-400">
+          <div className="px-3 text-[10px] font-mono text-slate-400">
             v2.4.12 • Ranong Pier
           </div>
         </div>

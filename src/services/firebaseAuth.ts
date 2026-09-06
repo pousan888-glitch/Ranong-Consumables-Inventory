@@ -16,6 +16,9 @@ export const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 // Google Sheets Scope for full inventory sync
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+provider.setCustomParameters({
+  prompt: 'select_account',
+});
 
 // Internal state tracking
 let isSigningIn = false;
@@ -41,16 +44,15 @@ export const initAuth = (
 /**
  * Sign in with Google Popup and obtain Google Sheets OAuth access token
  */
-export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+export const googleSignIn = async (): Promise<{ user: User; accessToken: string | null } | null> => {
   try {
     isSigningIn = true;
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      throw new Error('Failed to retrieve Google OAuth access token from login');
+    if (credential?.accessToken) {
+      cachedAccessToken = credential.accessToken;
     }
 
-    cachedAccessToken = credential.accessToken;
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Google Sign-in error:', error);
